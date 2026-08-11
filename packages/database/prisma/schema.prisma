@@ -1,0 +1,324 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CLIENT
+  WORKER
+  SUPER_ADMIN
+}
+
+enum CrmModule {
+  IMPORT
+  DISMANTLE
+  SERVICE
+  SALES
+}
+
+enum VehicleStatus {
+  DRAFT
+  IN_AUCTION
+  WON
+  IN_TRANSIT
+  CUSTOMS
+  ON_YARD
+  IN_DISMANTLE
+  IN_SERVICE
+  FOR_SALE
+  SOLD
+  SCRAPPED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String
+  phone        String?
+  role         UserRole @default(CLIENT)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  workerPermissions WorkerPermission[]
+  clientProfile     ClientProfile?
+  assignedTasks     Task[]             @relation("AssignedTasks")
+  createdTasks      Task[]             @relation("CreatedTasks")
+  dashboards        Dashboard[]
+}
+
+model WorkerPermission {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  module    CrmModule
+  canRead   Boolean   @default(true)
+  canWrite  Boolean   @default(false)
+  canDelete Boolean   @default(false)
+
+  @@unique([userId, module])
+}
+
+model ClientProfile {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  company   String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  vehicles       Vehicle[]
+  importRequests ImportRequest[]
+  serviceOrders  ServiceOrder[]
+  deals          Deal[]
+}
+
+model Vehicle {
+  id          String        @id @default(cuid())
+  vin         String?       @unique
+  make        String
+  model       String
+  year        Int
+  status      VehicleStatus @default(DRAFT)
+  clientId    String?
+  client      ClientProfile? @relation(fields: [clientId], references: [id])
+  photos      Json          @default("[]")
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  importRequest ImportRequest?
+  dismantleJob  DismantleJob?
+  serviceOrders ServiceOrder[]
+  saleListing   SaleListing?
+}
+
+// ─── IMPORT ───────────────────────────────────────────
+
+enum ImportStatus {
+  REQUEST
+  SEARCH
+  AUCTION
+  WON
+  PAYMENT
+  SHIPPING
+  CUSTOMS
+  DELIVERED
+  CLOSED
+}
+
+model ImportRequest {
+  id          String       @id @default(cuid())
+  clientId    String
+  client      ClientProfile @relation(fields: [clientId], references: [id])
+  vehicleId   String?      @unique
+  vehicle     Vehicle?     @relation(fields: [vehicleId], references: [id])
+  status      ImportStatus @default(REQUEST)
+  budget      Float?
+  auctionUrl  String?
+  lotNumber   String?
+  shippingCost Float?
+  customsCost  Float?
+  totalCost    Float?
+  notes       String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+// ─── DISMANTLE ────────────────────────────────────────
+
+enum DismantleStatus {
+  ON_YARD
+  IN_PROGRESS
+  PARTS_READY
+  SCRAPPED
+  CLOSED
+}
+
+model DismantleJob {
+  id        String          @id @default(cuid())
+  vehicleId String          @unique
+  vehicle   Vehicle         @relation(fields: [vehicleId], references: [id])
+  status    DismantleStatus @default(ON_YARD)
+  startedAt DateTime?
+  finishedAt DateTime?
+  notes     String?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  parts Part[]
+}
+
+model Part {
+  id             String       @id @default(cuid())
+  dismantleJobId String
+  dismantleJob   DismantleJob @relation(fields: [dismantleJobId], references: [id], onDelete: Cascade)
+  name           String
+  category       String
+  price          Float?
+  quantity       Int          @default(1)
+  isSold         Boolean      @default(false)
+  photos         Json         @default("[]")
+  location       String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+// ─── SERVICE ──────────────────────────────────────────
+
+enum ServiceStatus {
+  REQUEST
+  DIAGNOSTICS
+  APPROVAL
+  IN_PROGRESS
+  DONE
+  DELIVERED
+}
+
+model ServiceOrder {
+  id          String        @id @default(cuid())
+  clientId    String
+  client      ClientProfile @relation(fields: [clientId], references: [id])
+  vehicleId   String
+  vehicle     Vehicle       @relation(fields: [vehicleId], references: [id])
+  status      ServiceStatus @default(REQUEST)
+  description String?
+  estimate    Float?
+  finalCost   Float?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+}
+
+// ─── SALES ────────────────────────────────────────────
+
+enum SaleStatus {
+  PREPARING
+  LISTED
+  RESERVED
+  SOLD
+  CLOSED
+}
+
+model SaleListing {
+  id          String     @id @default(cuid())
+  vehicleId   String     @unique
+  vehicle     Vehicle    @relation(fields: [vehicleId], references: [id])
+  status      SaleStatus @default(PREPARING)
+  price       Float
+  description String?
+  photos      Json       @default("[]")
+  views       Int        @default(0)
+  clicks      Int        @default(0)
+  publishedAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  deals Deal[]
+}
+
+model Deal {
+  id            String       @id @default(cuid())
+  saleListingId String
+  saleListing   SaleListing  @relation(fields: [saleListingId], references: [id])
+  clientId      String
+  client        ClientProfile @relation(fields: [clientId], references: [id])
+  amount        Float
+  status        String       @default("pending")
+  closedAt      DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+// ─── CRM CORE ─────────────────────────────────────────
+
+model Task {
+  id           String    @id @default(cuid())
+  title        String
+  description  String?
+  module       CrmModule
+  assigneeId   String?
+  assignee     User?     @relation("AssignedTasks", fields: [assigneeId], references: [id])
+  createdById  String
+  createdBy    User      @relation("CreatedTasks", fields: [createdById], references: [id])
+  isDone       Boolean   @default(false)
+  dueDate      DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+}
+
+// ─── ANALYTICS ────────────────────────────────────────
+
+model MetricDefinition {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  label       String
+  type        String   @default("counter")
+  aggregation String   @default("sum")
+  dimensions  Json     @default("[]")
+  chartType   String   @default("line")
+  module      String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model AnalyticsEvent {
+  id         String   @id @default(cuid())
+  metricKey  String
+  value      Float    @default(1)
+  dimensions Json     @default("{}")
+  timestamp  DateTime @default(now())
+
+  @@index([metricKey, timestamp])
+  @@index([timestamp])
+}
+
+model AnalyticsAggregate {
+  id             String @id @default(cuid())
+  metricKey      String
+  period         String
+  granularity    String
+  dimensionsKey  String @default("{}")
+  value          Float
+  dimensions     Json   @default("{}")
+  count          Int    @default(0)
+
+  @@unique([metricKey, period, granularity, dimensionsKey])
+  @@index([metricKey, period])
+}
+
+model Dashboard {
+  id        String   @id @default(cuid())
+  name      String
+  role      UserRole @default(WORKER)
+  module    CrmModule?
+  isDefault Boolean  @default(false)
+  createdBy String
+  creator   User     @relation(fields: [createdBy], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  widgets Widget[]
+}
+
+model Widget {
+  id          String    @id @default(cuid())
+  dashboardId String
+  dashboard   Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  metricKey   String
+  chartType   String    @default("line")
+  title       String
+  filters     Json      @default("{}")
+  position    Json      @default("{\"x\":0,\"y\":0,\"w\":4,\"h\":2}")
+  refreshRate Int?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
