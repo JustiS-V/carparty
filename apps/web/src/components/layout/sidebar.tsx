@@ -31,20 +31,26 @@ export function Sidebar({ user, items, title }: SidebarProps) {
       </div>
 
       <nav className="flex-1 space-y-1 p-4">
-        {items.map((item) => (
+        {items.map((item) => {
+          const isActive =
+            item.href === '/admin'
+              ? pathname === '/admin'
+              : pathname === item.href || pathname.startsWith(item.href + '/');
+          return (
           <Link
             key={item.href}
             href={item.href}
             className={clsx(
               'block rounded-lg px-3 py-2 text-sm font-medium transition',
-              pathname === item.href || pathname.startsWith(item.href + '/')
+              isActive
                 ? 'bg-brand-50 text-brand-700'
                 : 'text-slate-600 hover:bg-slate-50',
             )}
           >
             {item.label}
           </Link>
-        ))}
+          );
+        })}
       </nav>
 
       <div className="border-t border-slate-200 p-4">

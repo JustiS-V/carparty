@@ -1,0 +1,102 @@
+# CarParty UA — TODO
+
+Оновлено: 2026-08-13 (analytics product)
+
+## 🔴 Критично перед продажем
+
+- [ ] Заповнити `.env.production` (токени, ключі, паролі)
+- [ ] `pnpm db:push` на VPS після деплою
+- [ ] Telegram Bot Token від @BotFather
+- [ ] BOT_ADMIN_IDS — ваш Telegram ID
+- [ ] LiqPay: PUBLIC_KEY + PRIVATE_KEY + CALLBACK_URL (HTTPS)
+- [ ] Monobank: TOKEN + JAR_URL + реєстрація webhook
+- [ ] TELEGRAM collector: API_ID, API_HASH, SESSION, список каналів
+- [ ] AUTORIA_API_KEY з developers.ria.com
+- [ ] Nginx + SSL (Let's Encrypt) на VPS
+- [ ] `docker compose -f docker-compose.prod.yml up -d --build`
+
+## 💳 Оплата
+
+- [x] LiqPay checkout + callback
+- [x] Monobank jar + webhook
+- [ ] Протестувати оплату end-to-end (sandbox LiqPay)
+- [ ] Telegram Stars / invoice (оплата в боті без виходу)
+- [ ] Monobank: одноразова реєстрація webhook через API
+
+## 🤖 Telegram Bot
+
+- [x] UA + EN i18n
+- [x] Trial PRO 48h з кнопками
+- [x] Кнопка «Trial PRO» / «Лишити FREE»
+- [x] Нагадування за 24h до кінця trial
+- [x] Автодаунгрейд після trial
+- [ ] Inline-меню фільтрів (замість /filter make BMW)
+- [ ] Wizard onboarding (марка → бюджет → місто)
+- [ ] Фото в картках оголошень
+- [ ] Кнопка «Приховати / Не цікавить»
+- [ ] /support — зв'язок з адміном
+- [ ] Оферта + політика конфіденційності (посилання в боті)
+
+## 📡 Збір даних (Collectors)
+
+- [x] Telegram channels (GramJS)
+- [x] AUTO.RIA API parser
+- [x] OLX.ua parser
+- [x] Дефолтний список UA каналів
+- [ ] Реальні канали Copart/пригон (замінити placeholder)
+- [ ] Дедуплікація: одне авто з OLX + Telegram → один лид
+- [ ] Маркування «гарячих» оголошень (ціна нижче ринку)
+- [ ] Facebook / Instagram parsers
+- [ ] Алерти адміну: collector не працює >6 год
+
+## 🖥 Адмінка / CRM
+
+- [x] /admin мониторинг
+- [x] Графики по дням
+- [x] Лиды, каналы, bot subscribers
+- [ ] Promote лид → ImportRequest / SaleListing
+- [ ] Экспорт лидов CSV
+- [ ] Push-алерты админу в Telegram
+
+## 📊 Аналітика (окремий продукт / upsell)
+
+> Так — парсер уже збирає ціни, марки, регіони, джерела. З цього можна продавати аналітику перекупам окремо або як доп. тариф до PRO.
+
+- [ ] Визначити пакети: «Ринок UA» (weekly digest) / «PRO Analytics» (live dashboard)
+- [ ] Середня ціна по марці + модель + рік + регіон
+- [ ] Динаміка цін і кількості оголошень (7/30/90 днів)
+- [ ] «Нижче ринку» — % відхилення від медіани по сегменту
+- [ ] Час продажу: скільки днів оголошення висить до зникнення
+- [ ] Розбивка по джерелах: Telegram / OLX / AUTO.RIA
+- [ ] Топ марок і моделей за тиждень (попит перекупів)
+- [ ] Щотижневий PDF/Telegram-дайджест для підписників Analytics
+- [ ] Команда /stats або /market у боті (BASIC — обмежено, PRO — повний доступ)
+- [ ] Веб-дашборд /client/analytics або Mini App для платних
+- [ ] API-доступ до агрегатів (тариф «Дилер»)
+- [ ] Ціноутворення: +199–399 грн/міс до PRO або окремий тариф ANALYTICS 499 грн
+
+## 📈 Маркетинг / продукт
+
+- [ ] Реферальна програма (+7 днів PRO за друга)
+- [ ] Річна підписка зі знижкою
+- [ ] Тариф «Дилер» (1500+ грн, кілька фільтрів)
+- [ ] Landing page / Telegram Mini App
+- [ ] Перші 20–50 користувачів — ручний support + відгуки
+
+## 🛠 Інфра
+
+- [x] 3 Docker-контейнери: backend (API + collectors), product (web + bot), landing
+- [x] docker-compose.prod.yml
+- [x] Dockerfile (backend, product, landing)
+- [x] smoke-тест ingest (`pnpm smoke`)
+- [ ] Бэкап PostgreSQL (cron daily)
+- [ ] Healthcheck алерты
+- [ ] CI/CD (GitHub Actions → VPS deploy)
+
+## 📋 Від вас (не в коді)
+
+- [ ] Username бота (@...)
+- [ ] Список 5–10 Telegram-каналів для моніторингу
+- [ ] ФОП / юрлицо для оферти
+- [ ] Monobank jar / LiqPay merchant
+- [ ] Домен для API callback

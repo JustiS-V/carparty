@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { AdminDailyCharts } from '@/components/admin/daily-charts';
 import { DashboardGrid } from '@/components/analytics/dashboard-grid';
 import { api } from '@/lib/api';
 
@@ -22,12 +23,12 @@ export default function AdminAnalyticsPage() {
   }, []);
 
   const defaultWidgets = [
+    { metricKey: 'leads.ingested', chartType: 'area', title: 'Собранные объявления' },
+    { metricKey: 'bot.deliveries', chartType: 'area', title: 'Доставки бота' },
+    { metricKey: 'bot.revenue', chartType: 'area', title: 'Выручка бота' },
+    { metricKey: 'bot.payments', chartType: 'bar', title: 'Оплаты' },
     { metricKey: 'sales.count', chartType: 'bar', title: 'Продажи' },
     { metricKey: 'listing.views', chartType: 'line', title: 'Просмотры' },
-    { metricKey: 'listing.clicks', chartType: 'line', title: 'Клики' },
-    { metricKey: 'import.completed', chartType: 'bar', title: 'Пригоны' },
-    { metricKey: 'clients.new', chartType: 'area', title: 'Новые клиенты' },
-    { metricKey: 'service.revenue', chartType: 'area', title: 'Выручка сервиса' },
   ];
 
   return (
@@ -49,6 +50,21 @@ export default function AdminAnalyticsPage() {
         </select>
       </div>
 
+      <div className="mb-10">
+        <AdminDailyCharts
+          days={
+            period === 'today' || period === 'last_7_days'
+              ? 7
+              : period === 'last_90_days'
+                ? 90
+                : 30
+          }
+        />
+      </div>
+
+      <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-500">
+        Метрики из event log
+      </h2>
       <DashboardGrid
         widgets={dashboard?.widgets ?? defaultWidgets}
         period={period}

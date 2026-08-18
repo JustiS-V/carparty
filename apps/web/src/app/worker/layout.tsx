@@ -9,6 +9,7 @@ import { Sidebar } from '@/components/layout/sidebar';
 const workerNav = [
   { href: '/worker/dashboard', label: 'Дашборд' },
   { href: '/worker/analytics', label: 'Аналитика' },
+  { href: '/worker/leads', label: 'Лиды' },
   { href: '/worker/import', label: 'Пригон' },
   { href: '/worker/dismantle', label: 'Разборка' },
   { href: '/worker/service', label: 'Сервис' },

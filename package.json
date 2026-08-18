@@ -7,9 +7,16 @@
     "lint": "turbo lint",
     "db:generate": "pnpm --filter @carparty/database generate",
     "db:push": "pnpm --filter @carparty/database push",
-    "db:studio": "pnpm --filter @carparty/database studio"
+    "db:studio": "pnpm --filter @carparty/database studio",
+    "collector:dev": "pnpm --filter @carparty/collector dev",
+    "bot:dev": "pnpm --filter @carparty/bot dev",
+    "landing:dev": "pnpm --filter @carparty/landing dev",
+    "smoke": "tsx scripts/smoke-ingest.ts",
+    "deploy:prod": "docker compose -f docker-compose.prod.yml up -d --build"
   },
   "devDependencies": {
+    "dotenv": "^16.4.7",
+    "tsx": "^4.19.2",
     "turbo": "^2.3.0",
     "typescript": "^5.6.3"
   },

@@ -7,6 +7,10 @@ import { getStoredUser } from '@/lib/api';
 import { Sidebar } from '@/components/layout/sidebar';
 
 const adminNav = [
+  { href: '/admin', label: 'Мониторинг' },
+  { href: '/admin/leads', label: 'Лиды' },
+  { href: '/admin/channels', label: 'Каналы' },
+  { href: '/admin/bot', label: 'Telegram Bot' },
   { href: '/admin/analytics', label: 'Аналитика' },
   { href: '/admin/metrics', label: 'Метрики' },
   { href: '/admin/users', label: 'Пользователи' },

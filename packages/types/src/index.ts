@@ -93,3 +93,57 @@ export interface PaginatedResponse<T> {
   page: number;
   pageSize: number;
 }
+
+export type ExternalSource =
+  | 'TELEGRAM'
+  | 'THREADS'
+  | 'INSTAGRAM'
+  | 'FACEBOOK'
+  | 'MARKETPLACE'
+  | 'AUTO_RIA'
+  | 'OLX_UA'
+  | 'OTHER';
+
+export type BotPlan = 'FREE' | 'BASIC' | 'PRO';
+
+export interface SubscriberFilters {
+  makes?: string[];
+  maxPrice?: number;
+  minYear?: number;
+  regions?: string[];
+  keywords?: string[];
+}
+
+export type LeadStatus =
+  | 'NEW'
+  | 'PARSED'
+  | 'REVIEW'
+  | 'PROMOTED'
+  | 'REJECTED'
+  | 'DUPLICATE';
+
+export interface ParsedListing {
+  description: string | null;
+  price: number | null;
+  currency: string | null;
+  make: string | null;
+  model: string | null;
+  year: number | null;
+  region: string | null;
+  links: string[];
+  mediaUrls: string[];
+  isCarListing: boolean;
+  metadata: Record<string, unknown>;
+}
+
+export interface IngestPayload {
+  source: ExternalSource;
+  externalId: string;
+  rawText: string;
+  sourceUrl?: string;
+  channelExternalId?: string;
+  channelName?: string;
+  mediaUrls?: string[];
+  metadata?: Record<string, unknown>;
+  postedAt?: string;
+}

@@ -5,8 +5,8 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin', 'cyrillic'] });
 
 export const metadata: Metadata = {
-  title: 'CarParty — Пригон, разборка, сервис',
-  description: 'Автомобильная компания: пригон, разборка и ремонт авто из США',
+  title: 'CarParty — особистий кабінет',
+  description: 'Веб-CRM CarParty: ліди, підписка, аналітика',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

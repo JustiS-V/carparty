@@ -9,6 +9,10 @@ import { ServiceModule } from './modules/service/service.module';
 import { SalesModule } from './modules/sales/sales.module';
 import { AnalyticsModule } from './analytics/analytics.module';
 import { TasksModule } from './crm/tasks.module';
+import { CollectorsModule } from './modules/collectors/collectors.module';
+import { PaymentsModule } from './modules/payments/payments.module';
+import { BotAdminModule } from './modules/bot-admin/bot-admin.module';
+import { AdminMonitorModule } from './modules/admin-monitor/admin-monitor.module';
 import { PrismaModule } from './prisma/prisma.module';
 
 @Module({
@@ -24,6 +28,10 @@ import { PrismaModule } from './prisma/prisma.module';
     SalesModule,
     AnalyticsModule,
     TasksModule,
+    CollectorsModule,
+    PaymentsModule,
+    BotAdminModule,
+    AdminMonitorModule,
   ],
 })
 export class AppModule {}

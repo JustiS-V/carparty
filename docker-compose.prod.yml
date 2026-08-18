@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-carparty}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-carparty}
+      POSTGRES_DB: ${POSTGRES_DB:-carparty}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-carparty}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      target: backend
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-carparty}:${POSTGRES_PASSWORD:-carparty}@postgres:5432/${POSTGRES_DB:-carparty}?schema=public
+      PORT: 4000
+      COLLECTOR_API_URL: http://localhost:4000/api
+    ports:
+      - '4000:4000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  product:
+    build:
+      context: .
+      target: product
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-carparty}:${POSTGRES_PASSWORD:-carparty}@postgres:5432/${POSTGRES_DB:-carparty}?schema=public
+      BOT_API_URL: http://backend:4000/api
+      NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:4000/api}
+    ports:
+      - '3000:3000'
+    depends_on:
+      - backend
+
+  landing:
+    build:
+      context: .
+      target: landing
+    restart: unless-stopped
+    env_file: .env.production
+    environment:
+      NEXT_PUBLIC_PRODUCT_URL: ${PUBLIC_PRODUCT_URL:-http://localhost:3000}
+      NEXT_PUBLIC_BOT_URL: ${PUBLIC_BOT_URL:-https://t.me/your_bot}
+    ports:
+      - '3001:3000'
+    depends_on:
+      - product
+
+volumes:
+  postgres_data:

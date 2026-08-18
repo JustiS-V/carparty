@@ -254,6 +254,137 @@ model Task {
   updatedAt    DateTime  @updatedAt
 }
 
+// ─── COLLECTORS (external listings) ───────────────────
+
+enum ExternalSource {
+  TELEGRAM
+  THREADS
+  INSTAGRAM
+  FACEBOOK
+  MARKETPLACE
+  AUTO_RIA
+  OLX_UA
+  OTHER
+}
+
+enum LeadStatus {
+  NEW
+  PARSED
+  REVIEW
+  PROMOTED
+  REJECTED
+  DUPLICATE
+}
+
+model SourceChannel {
+  id         String         @id @default(cuid())
+  source     ExternalSource
+  externalId String
+  name       String
+  isActive   Boolean        @default(true)
+  lastSyncAt DateTime?
+  config     Json           @default("{}")
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+
+  leads ExternalLead[]
+
+  @@unique([source, externalId])
+}
+
+model ExternalLead {
+  id             String         @id @default(cuid())
+  source         ExternalSource
+  channelId      String?
+  channel        SourceChannel? @relation(fields: [channelId], references: [id])
+  externalId     String
+  sourceUrl      String?
+  rawText        String         @db.Text
+  description    String?        @db.Text
+  price          Float?
+  currency       String?
+  make           String?
+  model          String?
+  year           Int?
+  region         String?
+  market         String         @default("UA")
+  links          Json           @default("[]")
+  mediaUrls      Json           @default("[]")
+  status         LeadStatus     @default(NEW)
+  parsedAt       DateTime?
+  promotedToId   String?
+  promotedToType String?
+  contentHash    String         @unique
+  metadata       Json           @default("{}")
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@unique([source, externalId])
+  @@index([status])
+  @@index([source])
+  @@index([createdAt])
+  @@index([market])
+  @@index([region])
+
+  deliveries BotDelivery[]
+}
+
+// ─── TELEGRAM BOT (UA market) ─────────────────────────
+
+enum BotPlan {
+  FREE
+  BASIC
+  PRO
+}
+
+model BotSubscriber {
+  id               String    @id @default(cuid())
+  telegramId       String    @unique
+  telegramUsername String?
+  firstName        String?
+  locale           String    @default("uk")
+  plan             BotPlan   @default(FREE)
+  expiresAt        DateTime?
+  trialUsedAt      DateTime?
+  trialExpiresAt   DateTime?
+  trialReminderSent Boolean  @default(false)
+  filters          Json      @default("{}")
+  isActive         Boolean   @default(true)
+  dailySent        Int       @default(0)
+  dailyResetAt     DateTime  @default(now())
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  deliveries BotDelivery[]
+}
+
+model BotDelivery {
+  id           String        @id @default(cuid())
+  subscriberId String
+  subscriber   BotSubscriber @relation(fields: [subscriberId], references: [id], onDelete: Cascade)
+  leadId       String
+  lead         ExternalLead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  sentAt       DateTime      @default(now())
+
+  @@unique([subscriberId, leadId])
+  @@index([subscriberId, sentAt])
+}
+
+model BotPaymentOrder {
+  id         String    @id @default(cuid())
+  orderId    String    @unique
+  telegramId String
+  plan       BotPlan
+  amountUah  Float
+  status     String    @default("pending")
+  provider   String    @default("liqpay")
+  createdAt  DateTime  @default(now())
+  paidAt     DateTime?
+
+  @@index([telegramId])
+  @@index([status])
+}
+
 // ─── ANALYTICS ────────────────────────────────────────
 
 model MetricDefinition {
