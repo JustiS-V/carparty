@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query, UseGuards, Headers } from '@nestjs/common';
 import { UserRole } from '@carparty/database';
 import { JwtAuthGuard, Roles, RolesGuard } from '../../auth/guards/roles.guard';
+import { StripeBillingService } from './stripe-billing.service';
 import { CreatePaymentDto } from './dto/payments.dto';
 import { LiqPayService } from './liqpay.service';
 import { MonobankService, type MonobankWebhookPayload } from './monobank.service';
@@ -10,7 +11,18 @@ export class PaymentsController {
   constructor(
     private liqpay: LiqPayService,
     private monobank: MonobankService,
+    private stripeBilling: StripeBillingService,
   ) {}
+
+  @Post('stripe/create')
+  createStripe(@Body() body: CreatePaymentDto) {
+    return this.stripeBilling.createCheckout(body);
+  }
+
+  @Post('stripe/fulfill')
+  fulfillStripe(@Body() body: { order_id: string }, @Headers('x-product-key') key?: string) {
+    return this.stripeBilling.fulfill(body.order_id, key);
+  }
 
   @Post('liqpay/create')
   createLiqPay(@Body() body: CreatePaymentDto) {

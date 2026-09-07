@@ -157,13 +157,15 @@ export function createBot(token: string): Bot {
       .text(t(locale, 'payLiqPay'), `pay:liqpay:${plan}`)
       .text(t(locale, 'payMonobank'), `pay:monobank:${plan}`);
 
+    if (process.env.STRIPE_ENABLED === 'true') keyboard.row().text('Stripe', `pay:stripe:${plan}`);
+
     await ctx.reply(t(locale, 'payChoose', { plan: planLabelText, price }), {
       parse_mode: 'HTML',
       reply_markup: keyboard,
     });
   });
 
-  bot.callbackQuery(/^pay:(liqpay|monobank):(BASIC|PRO)$/, async (ctx) => {
+  bot.callbackQuery(/^pay:(liqpay|monobank|stripe):(BASIC|PRO)$/, async (ctx) => {
     const method = ctx.match[1];
     const plan = ctx.match[2] as 'BASIC' | 'PRO';
     await ctx.answerCallbackQuery();
@@ -174,6 +176,17 @@ export function createBot(token: string): Bot {
     const price = PLANS[plan].priceUah;
 
     try {
+      if (method === 'stripe' && process.env.STRIPE_ENABLED === 'true') {
+        const response = await fetch(`${API_URL}/payments/stripe/create`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ telegramId, plan }),
+        });
+        const data = await response.json() as { checkoutUrl?: string };
+        if (response.ok && data.checkoutUrl) {
+          await ctx.reply(`Stripe · ${planLabelText}`, { reply_markup: new InlineKeyboard().url('Stripe Checkout', data.checkoutUrl) });
+          return;
+        }
+      }
       if (method === 'liqpay') {
         const response = await fetch(`${API_URL}/payments/liqpay/create`, {
           method: 'POST',
