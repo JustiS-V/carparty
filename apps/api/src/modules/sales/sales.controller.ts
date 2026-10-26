@@ -1,11 +1,16 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, UseGuards, Req } from '@nestjs/common';
 import { UserRole } from '@carparty/database';
 import { JwtAuthGuard, Roles, RolesGuard } from '../../auth/guards/roles.guard';
 import { SalesService } from './sales.service';
+import { PrismaService } from '../../prisma/prisma.service';
+import { ownClientId, type RequestUser } from '../../auth/client-scope';
 
 @Controller('sales')
 export class SalesController {
-  constructor(private service: SalesService) {}
+  constructor(
+    private service: SalesService,
+    private prisma: PrismaService,
+  ) {}
 
   @Get('listings')
   findListings() {
@@ -33,8 +38,9 @@ export class SalesController {
   @Post('deals')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.WORKER, UserRole.SUPER_ADMIN, UserRole.CLIENT)
-  createDeal(@Body() body: { saleListingId: string; clientId: string; amount: number }) {
-    return this.service.createDeal(body);
+  async createDeal(@Req() req: { user: RequestUser }, @Body() body: { saleListingId: string; clientId: string; amount: number }) {
+    const own = await ownClientId(this.prisma, req.user);
+    return this.service.createDeal({ ...body, clientId: own ?? body.clientId });
   }
 
   @Patch('deals/:id/close')

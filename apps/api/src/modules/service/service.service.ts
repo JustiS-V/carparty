@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { ServiceStatus } from '@carparty/database';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AnalyticsService } from '../../analytics/analytics.service';
@@ -10,8 +10,10 @@ export class ServiceOrdersService {
     private analytics: AnalyticsService,
   ) {}
 
-  findAll() {
+  /** clientId set = only that client's orders (a client's own view). */
+  findAll(clientId: string | null = null) {
     return this.prisma.client.serviceOrder.findMany({
+      where: clientId ? { clientId } : undefined,
       include: {
         client: { include: { user: { select: { name: true } } } },
         vehicle: true,
@@ -20,7 +22,11 @@ export class ServiceOrdersService {
     });
   }
 
-  async create(data: { clientId: string; vehicleId: string; description?: string }) {
+  async create(data: { clientId: string; vehicleId: string; description?: string }, ownClient: string | null = null) {
+    if (ownClient) {
+      const vehicle = await this.prisma.client.vehicle.findUnique({ where: { id: data.vehicleId }, select: { clientId: true } });
+      if (!vehicle || (vehicle.clientId && vehicle.clientId !== ownClient)) throw new ForbiddenException('Not your vehicle');
+    }
     const order = await this.prisma.client.serviceOrder.create({
       data,
       include: { vehicle: true },

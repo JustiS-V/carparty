@@ -1,15 +1,23 @@
 FROM node:20-alpine AS base
-RUN corepack enable && corepack prepare pnpm@9.14.2 --activate
+# openssl: Prisma's query engine needs it on Alpine
+RUN apk add --no-cache openssl libc6-compat \
+  && corepack enable && corepack prepare pnpm@9.14.2 --activate
 WORKDIR /app
 
 FROM base AS deps
+# Native modules (bufferutil, utf-8-validate) have no prebuilt binaries for
+# linux/arm64 musl, so they compile — e.g. on Apple Silicon.
+RUN apk add --no-cache python3 make g++
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.json ./
 COPY apps/api/package.json apps/api/
 COPY apps/bot/package.json apps/bot/
 COPY apps/collector/package.json apps/collector/
 COPY apps/web/package.json apps/web/
 COPY apps/landing/package.json apps/landing/
-COPY packages/*/package.json packages/
+COPY packages/analytics/package.json packages/analytics/
+COPY packages/database/package.json packages/database/
+COPY packages/parsers/package.json packages/parsers/
+COPY packages/types/package.json packages/types/
 RUN pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile
 
 FROM deps AS build

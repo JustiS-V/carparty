@@ -1,23 +1,29 @@
-import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { UserRole } from '@carparty/database';
 import { JwtAuthGuard, Roles, RolesGuard } from '../../auth/guards/roles.guard';
 import { ServiceOrdersService } from './service.service';
+import { PrismaService } from '../../prisma/prisma.service';
+import { ownClientId, type RequestUser } from '../../auth/client-scope';
 
 @Controller('service')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ServiceController {
-  constructor(private service: ServiceOrdersService) {}
+  constructor(
+    private service: ServiceOrdersService,
+    private prisma: PrismaService,
+  ) {}
 
   @Get()
   @Roles(UserRole.WORKER, UserRole.SUPER_ADMIN, UserRole.CLIENT)
-  findAll() {
-    return this.service.findAll();
+  async findAll(@Req() req: { user: RequestUser }) {
+    return this.service.findAll(await ownClientId(this.prisma, req.user));
   }
 
   @Post()
   @Roles(UserRole.CLIENT, UserRole.WORKER, UserRole.SUPER_ADMIN)
-  create(@Body() body: { clientId: string; vehicleId: string; description?: string }) {
-    return this.service.create(body);
+  async create(@Req() req: { user: RequestUser }, @Body() body: { clientId: string; vehicleId: string; description?: string }) {
+    const own = await ownClientId(this.prisma, req.user);
+    return this.service.create({ ...body, clientId: own ?? body.clientId }, own);
   }
 
   @Patch(':id/status')

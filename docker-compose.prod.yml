@@ -25,7 +25,7 @@ services:
       PORT: 4000
       COLLECTOR_API_URL: http://localhost:4000/api
     ports:
-      - '4000:4000'
+      - '${API_PORT:-4000}:4000'
     depends_on:
       postgres:
         condition: service_healthy
@@ -43,7 +43,7 @@ services:
       BOT_API_URL: http://backend:4000/api
       NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:4000/api}
     ports:
-      - '3000:3000'
+      - '${CRM_PORT:-3000}:3000'
     depends_on:
       - backend
 
@@ -61,7 +61,7 @@ services:
       NEXT_PUBLIC_PRODUCT_URL: ${PUBLIC_PRODUCT_URL:-http://localhost:3000}
       NEXT_PUBLIC_BOT_URL: ${PUBLIC_BOT_URL:-https://t.me/your_bot}
     ports:
-      - '3001:3000'
+      - '${LANDING_PORT:-3001}:3000'
     depends_on:
       - product
 
