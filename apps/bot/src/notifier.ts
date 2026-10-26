@@ -7,15 +7,33 @@ import { effectivePlan, parseFilters, PLANS } from './plans';
 import { processTrialLifecycle } from './trial';
 
 const MARKET = 'UA';
+// A new subscriber gets listings from at most this long before they joined,
+// not the whole backlog.
+const BACKLOG_MS = Number(process.env.BOT_BACKLOG_HOURS ?? 2) * 60 * 60 * 1000;
 
 export function startNotifier(bot: Bot, intervalMs: number): NodeJS.Timeout {
-  const tick = () => {
-    deliverNewLeads(bot).catch((error) => console.error('[notifier]', error));
-    processTrialLifecycle(bot).catch((error) => console.error('[trial]', error));
+  // A delivery round can outlast the interval; never run two at once, or the
+  // same listing could be sent twice before its delivery row is written.
+  let running = false;
+  const tick = async () => {
+    if (running) return;
+    running = true;
+    try {
+      await deliverNewLeads(bot).catch((error) => console.error('[notifier]', error));
+      await processTrialLifecycle(bot).catch((error) => console.error('[trial]', error));
+    } finally {
+      running = false;
+    }
   };
 
-  tick();
-  return setInterval(tick, intervalMs);
+  void tick();
+  return setInterval(() => void tick(), intervalMs);
+}
+
+/** Telegram answers 403 when the user blocked the bot or deleted the chat. */
+function isBlockedError(error: unknown): boolean {
+  const e = error as { error_code?: number; description?: string };
+  return e?.error_code === 403;
 }
 
 async function deliverNewLeads(bot: Bot): Promise<void> {
@@ -25,14 +43,19 @@ async function deliverNewLeads(bot: Bot): Promise<void> {
 
   if (!subscribers.length) return;
 
-  const leads = await prisma.externalLead.findMany({
-    where: {
-      market: MARKET,
-      status: { in: [LeadStatus.PARSED, LeadStatus.REVIEW] },
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 50,
-  });
+  const oldestJoin = Math.min(...subscribers.map((s) => s.createdAt.getTime()));
+  const leads = (
+    await prisma.externalLead.findMany({
+      where: {
+        market: MARKET,
+        // REVIEW = not recognised as a car listing; those are never delivered.
+        status: LeadStatus.PARSED,
+        createdAt: { gte: new Date(oldestJoin - BACKLOG_MS) },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    })
+  ).reverse(); // oldest first, so the chat reads chronologically
 
   for (const subscriber of subscribers) {
     const plan = effectivePlan(subscriber.plan, subscriber.expiresAt);
@@ -43,10 +66,12 @@ async function deliverNewLeads(bot: Bot): Promise<void> {
     if (!fresh || fresh.dailySent >= config.dailyLimit) continue;
 
     const filters = parseFilters(subscriber.filters);
+    const joinedFrom = subscriber.createdAt.getTime() - BACKLOG_MS;
     let sent = 0;
 
     for (const lead of leads) {
       if (fresh.dailySent + sent >= config.dailyLimit) break;
+      if (lead.createdAt.getTime() < joinedFrom) continue;
 
       const delayMs = config.delayMinutes * 60_000;
       if (delayMs > 0 && Date.now() - lead.createdAt.getTime() < delayMs) continue;
@@ -77,6 +102,11 @@ async function deliverNewLeads(bot: Bot): Promise<void> {
 
         sent += 1;
       } catch (error) {
+        if (isBlockedError(error)) {
+          await prisma.botSubscriber.update({ where: { id: subscriber.id }, data: { isActive: false } });
+          console.log(`[notifier] ${subscriber.telegramId} blocked the bot — deactivated`);
+          break;
+        }
         console.error(`[notifier] failed for ${subscriber.telegramId}`, error);
       }
     }

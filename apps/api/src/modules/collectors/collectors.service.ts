@@ -6,6 +6,22 @@ import { AnalyticsService } from '../../analytics/analytics.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CreateChannelDto, IngestLeadDto, UpdateChannelDto } from './dto/collectors.dto';
 
+/** Keeps only well-typed structured fields sent by a collector. */
+export function structuredFields(raw: Record<string, unknown> | undefined) {
+  const r = raw ?? {};
+  const str = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 80) : undefined);
+  const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : undefined);
+  const year = num(r.year);
+  return {
+    make: str(r.make),
+    model: str(r.model),
+    year: year && year >= 1950 && year <= new Date().getFullYear() + 1 ? Math.round(year) : undefined,
+    price: num(r.price),
+    currency: str(r.currency),
+    region: str(r.region),
+  };
+}
+
 @Injectable()
 export class CollectorsService {
   constructor(
@@ -102,7 +118,9 @@ export class CollectorsService {
 
     const channel = await this.ensureChannel(dto);
     const parsed = parseListing(dto.source, dto.rawText);
-    const status = parsed.isCarListing ? LeadStatus.PARSED : LeadStatus.REVIEW;
+    const known = structuredFields(dto.structured);
+    // A structured source that names make and year is a car listing by definition.
+    const status = parsed.isCarListing || (known.make && known.year) ? LeadStatus.PARSED : LeadStatus.REVIEW;
 
     const lead = await this.prisma.client.externalLead.create({
       data: {
@@ -112,12 +130,12 @@ export class CollectorsService {
         sourceUrl: dto.sourceUrl,
         rawText: dto.rawText,
         description: parsed.description,
-        price: parsed.price ?? undefined,
-        currency: parsed.currency ?? undefined,
-        make: parsed.make ?? undefined,
-        model: parsed.model ?? undefined,
-        year: parsed.year ?? undefined,
-        region: parsed.region ?? undefined,
+        price: known.price ?? parsed.price ?? undefined,
+        currency: known.currency ?? parsed.currency ?? undefined,
+        make: known.make ?? parsed.make ?? undefined,
+        model: known.model ?? parsed.model ?? undefined,
+        year: known.year ?? parsed.year ?? undefined,
+        region: known.region ?? parsed.region ?? undefined,
         market: 'UA',
         links: parsed.links,
         mediaUrls: [...new Set([...(dto.mediaUrls ?? []), ...parsed.mediaUrls])],

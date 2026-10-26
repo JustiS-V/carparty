@@ -11,7 +11,7 @@ import {
   type BotLocale,
 } from './i18n';
 import { activatePlan, startNotifier } from './notifier';
-import { effectivePlan, parseFilters, PLANS } from './plans';
+import { activeSources, ALPHA, effectivePlan, parseFilters, PLANS } from './plans';
 import { displayPlanLabel, sendTrialOffer, skipTrial, startTrial, trialOfferKeyboard, trialStartedMessage, TRIAL_HOURS } from './trial';
 
 const ADMIN_IDS = (process.env.BOT_ADMIN_IDS ?? '')
@@ -22,8 +22,27 @@ const ADMIN_IDS = (process.env.BOT_ADMIN_IDS ?? '')
 const PAYMENT_CARD = process.env.BOT_PAYMENT_CARD ?? '';
 const API_URL = process.env.BOT_API_URL ?? 'http://localhost:4000/api';
 
+/** Welcome copy lists only the sources that are actually running. */
+function welcomeText(locale: BotLocale): string {
+  const sources = activeSources();
+  if (ALPHA) return t(locale, 'alphaWelcome', { sources: sources.join(', ') || '—' });
+  return t(locale, 'startWelcome', { sources: sources.map((s) => `• ${s}`).join('\n') });
+}
+
+async function sendWelcome(bot: Bot, telegramId: string, locale: BotLocale) {
+  await bot.api.sendMessage(telegramId, welcomeText(locale), { parse_mode: 'HTML' });
+  if (!ALPHA) await sendTrialOffer(bot, telegramId, locale);
+}
+
 export function createBot(token: string): Bot {
   const bot = new Bot(token);
+
+  // Payments and trials are off during the alpha test.
+  const alphaGuard = async (ctx: { from?: { id: number }; reply: (text: string) => Promise<unknown> }) => {
+    if (!ALPHA) return false;
+    await ctx.reply(t(await getLocale(String(ctx.from?.id)), 'alphaNoPayments'));
+    return true;
+  };
 
   bot.command('start', async (ctx) => {
     const user = ctx.from;
@@ -38,6 +57,7 @@ export function createBot(token: string): Bot {
       update: {
         telegramUsername: user.username,
         firstName: user.first_name,
+        isActive: true,
       },
       create: {
         telegramId: String(user.id),
@@ -54,9 +74,35 @@ export function createBot(token: string): Bot {
       await ctx.reply(t('uk', 'chooseLang'), { reply_markup: keyboard });
     } else {
       const locale = parseLocale(existing.locale);
-      await ctx.reply(t(locale, 'startWelcome'), { parse_mode: 'HTML' });
-      await sendTrialOffer(bot, String(user.id), locale);
+      if (!existing.isActive) await ctx.reply(t(locale, 'resumed'));
+      await sendWelcome(bot, String(user.id), locale);
     }
+  });
+
+  bot.command('stop', async (ctx) => {
+    if (!ctx.from) return;
+    const locale = await getLocale(String(ctx.from.id));
+    await prisma.botSubscriber.updateMany({
+      where: { telegramId: String(ctx.from.id) },
+      data: { isActive: false },
+    });
+    await ctx.reply(t(locale, 'stopped'));
+  });
+
+  bot.command('feedback', async (ctx) => {
+    if (!ctx.from) return;
+    const locale = await getLocale(String(ctx.from.id));
+    const text = ctx.message?.text?.replace(/^\/feedback(@\w+)?\s*/, '').trim();
+    if (!text) {
+      await ctx.reply(t(locale, 'feedbackUsage'), { parse_mode: 'HTML' });
+      return;
+    }
+    const who = ctx.from.username ? `@${ctx.from.username}` : `${ctx.from.first_name ?? ''} (${ctx.from.id})`;
+    console.log(`[feedback] ${who}: ${text}`);
+    for (const adminId of ADMIN_IDS) {
+      await ctx.api.sendMessage(adminId, `💬 Feedback from ${who}:\n\n${text}`).catch(() => undefined);
+    }
+    await ctx.reply(t(locale, 'feedbackThanks'));
   });
 
   bot.callbackQuery(/^lang:(uk|en)$/, async (ctx) => {
@@ -70,13 +116,13 @@ export function createBot(token: string): Bot {
     });
 
     await ctx.reply(locale === 'uk' ? t('uk', 'langSetUk') : t('en', 'langSetEn'));
-    await ctx.reply(t(locale, 'startWelcome'), { parse_mode: 'HTML' });
-    await sendTrialOffer(bot, String(ctx.from.id), locale);
+    await sendWelcome(bot, String(ctx.from.id), locale);
   });
 
   bot.callbackQuery('trial:start', async (ctx) => {
     await ctx.answerCallbackQuery();
     if (!ctx.from) return;
+    if (await alphaGuard(ctx)) return;
     const locale = await getLocale(String(ctx.from.id));
 
     const started = await startTrial(String(ctx.from.id));
@@ -104,6 +150,7 @@ export function createBot(token: string): Bot {
 
   bot.command('trial', async (ctx) => {
     if (!ctx.from) return;
+    if (await alphaGuard(ctx)) return;
     const locale = await getLocale(String(ctx.from.id));
     const sub = await prisma.botSubscriber.findUnique({
       where: { telegramId: String(ctx.from.id) },
@@ -135,6 +182,7 @@ export function createBot(token: string): Bot {
   });
 
   bot.command('subscribe', async (ctx) => {
+    if (await alphaGuard(ctx)) return;
     const locale = await getLocale(String(ctx.from?.id));
     const keyboard = new InlineKeyboard()
       .text(t(locale, 'btnBasic'), 'plan:BASIC')
@@ -149,6 +197,7 @@ export function createBot(token: string): Bot {
   bot.callbackQuery(/^plan:(BASIC|PRO)$/, async (ctx) => {
     const plan = ctx.match[1] as 'BASIC' | 'PRO';
     await ctx.answerCallbackQuery();
+    if (await alphaGuard(ctx)) return;
     const locale = await getLocale(String(ctx.from?.id));
     const planLabelText = planLabel(locale, plan);
     const price = PLANS[plan].priceUah;
@@ -167,6 +216,7 @@ export function createBot(token: string): Bot {
     const method = ctx.match[1];
     const plan = ctx.match[2] as 'BASIC' | 'PRO';
     await ctx.answerCallbackQuery();
+    if (await alphaGuard(ctx)) return;
 
     const locale = await getLocale(String(ctx.from?.id));
     const telegramId = String(ctx.from?.id);
@@ -230,6 +280,7 @@ export function createBot(token: string): Bot {
   });
 
   bot.command('paid', async (ctx) => {
+    if (await alphaGuard(ctx)) return;
     const locale = await getLocale(String(ctx.from?.id));
     const plan = ctx.message?.text?.split(/\s+/)[1]?.toUpperCase();
     if (plan !== 'BASIC' && plan !== 'PRO') {
@@ -393,7 +444,8 @@ export function createBot(token: string): Bot {
     const limit = plan === 'FREE' ? 2 : plan === 'BASIC' ? 5 : 10;
 
     const leads = await prisma.externalLead.findMany({
-      where: { market: 'UA', status: { in: [LeadStatus.PARSED, LeadStatus.REVIEW] } },
+      // REVIEW = the parser could not recognise a car listing; never show those to users.
+      where: { market: 'UA', status: LeadStatus.PARSED },
       orderBy: { createdAt: 'desc' },
       take: limit,
     });
@@ -426,7 +478,21 @@ export function runBot(token: string): void {
   bot.catch((error) => console.error('[bot]', error));
   startNotifier(bot, interval);
 
+  // Command menu in the Telegram client.
+  const commands = (locale: BotLocale) =>
+    [
+      ['latest', locale === 'uk' ? 'Останні оголошення' : 'Recent listings'],
+      ['filters', locale === 'uk' ? 'Фільтри' : 'Filters'],
+      ['status', locale === 'uk' ? 'Мої налаштування' : 'My settings'],
+      ['feedback', locale === 'uk' ? 'Написати відгук' : 'Send feedback'],
+      ['stop', locale === 'uk' ? 'Вимкнути розсилку' : 'Pause alerts'],
+      ['lang', locale === 'uk' ? 'Мова' : 'Language'],
+      ...(ALPHA ? [] : [['subscribe', locale === 'uk' ? 'Тарифи' : 'Plans']]),
+    ].map(([command, description]) => ({ command, description }));
+  bot.api.setMyCommands(commands('uk')).catch((e) => console.error('[bot] setMyCommands', e));
+  bot.api.setMyCommands(commands('en'), { language_code: 'en' }).catch(() => undefined);
+
   bot.start({
-    onStart: () => console.log('[bot] CarParty UA bot started (uk/en)'),
+    onStart: (info) => console.log(`[bot] @${info.username} started (uk/en)${ALPHA ? ' — ALPHA mode, payments off' : ''}`),
   });
 }

@@ -37,6 +37,11 @@ export class IngestLeadDto {
   @IsOptional()
   @IsString()
   postedAt?: string;
+
+  /** Validated field by field in CollectorsService.ingest (structuredFields). */
+  @IsOptional()
+  @IsObject()
+  structured?: Record<string, unknown>;
 }
 
 export class CreateChannelDto {

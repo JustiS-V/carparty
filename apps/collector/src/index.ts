@@ -2,6 +2,7 @@ import { resolveTelegramChannels } from './config/ua-channels';
 import { startAutoRiaCollector } from './sources/auto-ria';
 import { startOlxUaCollector } from './sources/olx-ua';
 import { startTelegramCollector } from './sources/telegram';
+import { startTelegramPublicCollector } from './sources/telegram-public';
 
 async function main() {
   console.log('[collector] CarParty UA collector starting...');
@@ -13,6 +14,7 @@ async function main() {
   }
 
   await startTelegramCollector();
+  startTelegramPublicCollector();
   startAutoRiaCollector();
   // OLX has no public API for this; the collector reads its internal listing
   // endpoint, so it is opt-in (OLX_ENABLED=true) rather than on by default.
@@ -21,7 +23,7 @@ async function main() {
 
   const hasTelegram = Boolean(process.env.TELEGRAM_API_ID);
   console.log(
-    `[collector] Active: telegram=${hasTelegram ? 'yes' : 'no'}, autoria=${process.env.AUTORIA_API_KEY ? 'yes' : 'no'}, olx=${olx ? 'yes' : 'no'}`,
+    `[collector] Active: telegram=${hasTelegram ? 'yes' : 'no'}, telegram-public=${process.env.TELEGRAM_PUBLIC_CHANNELS ? 'yes' : 'no'}, autoria=${process.env.AUTORIA_API_KEY ? 'yes' : 'no'}, olx=${olx ? 'yes' : 'no'}`,
   );
   console.log('[collector] Running. Press Ctrl+C to stop.');
 }

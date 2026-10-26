@@ -146,4 +146,18 @@ export interface IngestPayload {
   mediaUrls?: string[];
   metadata?: Record<string, unknown>;
   postedAt?: string;
+  /**
+   * Fields a structured source (e.g. the AUTO.RIA API) already knows. They take
+   * precedence over what the text parser extracts from rawText.
+   */
+  structured?: StructuredListing;
+}
+
+export interface StructuredListing {
+  make?: string;
+  model?: string;
+  year?: number;
+  price?: number;
+  currency?: string;
+  region?: string;
 }
