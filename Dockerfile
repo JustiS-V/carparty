@@ -13,11 +13,16 @@ COPY packages/*/package.json packages/
 RUN pnpm install --frozen-lockfile || pnpm install --no-frozen-lockfile
 
 FROM deps AS build
+# Next.js inlines NEXT_PUBLIC_* at build time, so the public URLs are build args.
+ARG NEXT_PUBLIC_API_URL=http://localhost:4000/api
+ARG NEXT_PUBLIC_PRODUCT_URL=http://localhost:3000
+ARG NEXT_PUBLIC_BOT_URL=https://t.me/your_bot
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL \
+    NEXT_PUBLIC_PRODUCT_URL=$NEXT_PUBLIC_PRODUCT_URL \
+    NEXT_PUBLIC_BOT_URL=$NEXT_PUBLIC_BOT_URL
 COPY . .
 RUN pnpm db:generate \
-  && pnpm --filter @carparty/database build \
-  && pnpm --filter @carparty/parsers build \
-  && pnpm --filter @carparty/analytics build \
+  && pnpm build:packages \
   && pnpm --filter @carparty/api build \
   && pnpm --filter @carparty/web build \
   && pnpm --filter @carparty/landing build

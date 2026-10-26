@@ -1,8 +1,10 @@
-// Run before the API starts on a hosted demo:
+// Runs before the API starts:
 //   1. syncs the schema (prisma db push),
-//   2. loads the base seed and the demo data into an empty database,
-//   3. with DEMO_REFRESH_DAYS=N, rebuilds the demo once its data is older than N
-//      days, so the "last 30 days" analytics on a public demo never go stale.
+//   2. on an empty database, seeds according to SEED_MODE:
+//        demo — base seed (roles, demo accounts) + demo data (default),
+//        base — base seed only, none — nothing (a real deployment),
+//   3. with DEMO_REFRESH_DAYS=N (demo mode), rebuilds the demo once its data is
+//      older than N days, so the "last 30 days" analytics never go stale.
 // Usage: pnpm --filter @carparty/database ensure-demo
 import { execSync } from 'child_process';
 import { PrismaClient } from '@prisma/client';
@@ -22,6 +24,11 @@ async function state(prisma: PrismaClient): Promise<'empty' | 'stale' | 'ready'>
 
 async function main() {
   run('npx prisma db push --skip-generate');
+  const mode = process.env.SEED_MODE ?? 'demo';
+  if (mode === 'none') {
+    console.log('SEED_MODE=none — schema synced, no seed data.');
+    return;
+  }
   const prisma = new PrismaClient();
   const current = await state(prisma);
   await prisma.$disconnect();
@@ -30,12 +37,13 @@ async function main() {
     console.log('Database ready.');
     return;
   }
-  if (current === 'stale') {
+  if (current === 'stale' && mode === 'demo') {
     console.log(`Demo data older than ${process.env.DEMO_REFRESH_DAYS} days — rebuilding the demo database.`);
     run('npx prisma db push --skip-generate --force-reset');
   }
+  if (current === 'stale' && mode !== 'demo') return;
   run('npx tsx prisma/seed.ts');
-  run('npx tsx prisma/demo-seed.ts');
+  if (mode === 'demo') run('npx tsx prisma/demo-seed.ts');
 }
 
 main().catch((err) => {

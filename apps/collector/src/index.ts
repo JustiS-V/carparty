@@ -14,11 +14,14 @@ async function main() {
 
   await startTelegramCollector();
   startAutoRiaCollector();
-  startOlxUaCollector();
+  // OLX has no public API for this; the collector reads its internal listing
+  // endpoint, so it is opt-in (OLX_ENABLED=true) rather than on by default.
+  const olx = process.env.OLX_ENABLED === 'true';
+  if (olx) startOlxUaCollector();
 
   const hasTelegram = Boolean(process.env.TELEGRAM_API_ID);
   console.log(
-    `[collector] Active: telegram=${hasTelegram ? 'yes' : 'no'}, autoria=${process.env.AUTORIA_API_KEY ? 'yes' : 'no'}, olx=yes`,
+    `[collector] Active: telegram=${hasTelegram ? 'yes' : 'no'}, autoria=${process.env.AUTORIA_API_KEY ? 'yes' : 'no'}, olx=${olx ? 'yes' : 'no'}`,
   );
   console.log('[collector] Running. Press Ctrl+C to stop.');
 }

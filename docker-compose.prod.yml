@@ -19,7 +19,7 @@ services:
       context: .
       target: backend
     restart: unless-stopped
-    env_file: .env.production
+    env_file: ${CARPARTY_ENV_FILE:-.env.production}
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-carparty}:${POSTGRES_PASSWORD:-carparty}@postgres:5432/${POSTGRES_DB:-carparty}?schema=public
       PORT: 4000
@@ -34,8 +34,10 @@ services:
     build:
       context: .
       target: product
+      args:
+        NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:4000/api}
     restart: unless-stopped
-    env_file: .env.production
+    env_file: ${CARPARTY_ENV_FILE:-.env.production}
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-carparty}:${POSTGRES_PASSWORD:-carparty}@postgres:5432/${POSTGRES_DB:-carparty}?schema=public
       BOT_API_URL: http://backend:4000/api
@@ -49,8 +51,12 @@ services:
     build:
       context: .
       target: landing
+      args:
+        NEXT_PUBLIC_API_URL: ${PUBLIC_API_URL:-http://localhost:4000/api}
+        NEXT_PUBLIC_PRODUCT_URL: ${PUBLIC_PRODUCT_URL:-http://localhost:3000}
+        NEXT_PUBLIC_BOT_URL: ${PUBLIC_BOT_URL:-https://t.me/your_bot}
     restart: unless-stopped
-    env_file: .env.production
+    env_file: ${CARPARTY_ENV_FILE:-.env.production}
     environment:
       NEXT_PUBLIC_PRODUCT_URL: ${PUBLIC_PRODUCT_URL:-http://localhost:3000}
       NEXT_PUBLIC_BOT_URL: ${PUBLIC_BOT_URL:-https://t.me/your_bot}

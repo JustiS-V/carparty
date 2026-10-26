@@ -16,7 +16,8 @@
     "build:packages": "pnpm -r --filter \"./packages/*\" run build",
     "db:seed": "pnpm --filter @carparty/database seed",
     "db:seed:demo": "pnpm --filter @carparty/database seed:demo",
-    "demo": "docker compose up -d && pnpm db:generate && pnpm build:packages && pnpm db:push && pnpm db:seed && pnpm db:seed:demo && turbo dev"
+    "demo": "docker compose up -d && pnpm db:generate && pnpm build:packages && pnpm db:push && pnpm db:seed && pnpm db:seed:demo && turbo dev",
+    "docker:local": "docker compose -f docker-compose.prod.yml --env-file .env.docker up -d --build"
   },
   "devDependencies": {
     "dotenv": "^16.4.7",
