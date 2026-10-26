@@ -14,6 +14,7 @@ import { PaymentsModule } from './modules/payments/payments.module';
 import { BotAdminModule } from './modules/bot-admin/bot-admin.module';
 import { AdminMonitorModule } from './modules/admin-monitor/admin-monitor.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { HealthController } from './health.controller';
 
 @Module({
   imports: [
@@ -33,5 +34,6 @@ import { PrismaModule } from './prisma/prisma.module';
     BotAdminModule,
     AdminMonitorModule,
   ],
+  controllers: [HealthController],
 })
 export class AppModule {}

@@ -2,6 +2,8 @@
 
 Car-listing monitoring and dealer CRM for the Ukrainian market. Collectors pull listings from OLX, AUTO.RIA and Telegram channels; a Telegram bot pushes the ones that match each subscriber's filters; the CRM runs the dealer's whole pipeline — import from auctions, dismantling, service and sales.
 
+**Live demo:** _link after deploy_ — the sign-in page has one-click buttons for the admin, worker and client roles.
+
 ![Admin dashboard](docs/screenshots/admin-dashboard.jpg)
 
 ## What's inside
@@ -88,6 +90,12 @@ POST /api/payments/liqpay/callback
 GET  /api/analytics/query?metric=…&period=last_30_days&groupBy=day
 GET  /api/admin/analytics/daily
 ```
+
+## Hosted demo
+
+`render.yaml` deploys the API, the CRM, the landing page and PostgreSQL as a Render Blueprint. Before the API starts, `pnpm --filter @carparty/database ensure-demo` syncs the schema, seeds an empty database, and — with `DEMO_REFRESH_DAYS` — rebuilds the demo when it gets older than that, so the 30-day analytics never go stale. `GET /api/health` checks the process and the database. The bot and collectors are left out: they need Telegram credentials.
+
+CI (GitHub Actions) builds every package and app, seeds a fresh PostgreSQL and checks that the API starts and accepts a login.
 
 ## Production
 

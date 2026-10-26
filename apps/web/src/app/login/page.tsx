@@ -7,22 +7,30 @@ import type { AuthUser } from '@carparty/types';
 import { api, setStoredUser, setToken } from '@/lib/api';
 import { getDashboardPath } from '@/lib/utils';
 
+const DEMO_ACCOUNTS = [
+  { role: 'Администратор', sees: 'метрики, каналы, бот, пользователи', email: 'admin@carparty.local', password: 'admin123' },
+  { role: 'Сотрудник', sees: 'лиды, пригон, разборка, сервис, продажи', email: 'worker@carparty.local', password: 'worker123' },
+  { role: 'Клиент', sees: 'свои авто и заявки', email: 'client@carparty.local', password: 'client123' },
+];
+
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('admin@carparty.local');
   const [password, setPassword] = useState('admin123');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [slow, setSlow] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const signIn = async (credentials: { email: string; password: string }) => {
     setLoading(true);
     setError('');
+    // A sleeping free-tier API takes a while to wake up; say so instead of looking frozen.
+    const wakeHint = setTimeout(() => setSlow(true), 4000);
 
     try {
       const res = await api<{ token: string; user: AuthUser }>('/auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(credentials),
       });
 
       setToken(res.token);
@@ -31,8 +39,15 @@ export default function LoginPage() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ошибка входа');
     } finally {
+      clearTimeout(wakeHint);
+      setSlow(false);
       setLoading(false);
     }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    void signIn({ email, password });
   };
 
   return (
@@ -64,6 +79,7 @@ export default function LoginPage() {
           </div>
 
           {error && <p className="text-sm text-red-600">{error}</p>}
+          {slow && <p className="text-sm text-slate-500">Сервер демо просыпается после простоя — это занимает до минуты.</p>}
 
           <button
             type="submit"
@@ -74,11 +90,22 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-6 rounded-lg bg-slate-50 p-4 text-xs text-slate-600">
-          <p className="font-medium">Демо-аккаунты:</p>
-          <p>admin@carparty.local / admin123</p>
-          <p>worker@carparty.local / worker123</p>
-          <p>client@carparty.local / client123</p>
+        <div className="mt-6 border-t border-slate-200 pt-5">
+          <p className="text-sm font-medium text-slate-700">Демо: войти одной кнопкой</p>
+          <div className="mt-3 grid gap-2">
+            {DEMO_ACCOUNTS.map((account) => (
+              <button
+                key={account.email}
+                type="button"
+                disabled={loading}
+                onClick={() => signIn(account)}
+                className="flex items-center justify-between rounded-lg border border-slate-300 px-3 py-2 text-left text-sm hover:border-brand-600 hover:bg-slate-50 disabled:opacity-50"
+              >
+                <span className="font-medium text-slate-800">{account.role}</span>
+                <span className="text-xs text-slate-500">{account.sees}</span>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>

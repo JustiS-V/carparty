@@ -1,0 +1,63 @@
+# Render Blueprint for the public demo: API, CRM, landing and PostgreSQL.
+# The Telegram bot and the listing collectors need Telegram credentials and
+# are not part of the demo (run them with docker-compose.prod.yml).
+#
+# NEXT_PUBLIC_* values are baked in at build time. If Render assigns
+# different hostnames than the service names below, update these values and
+# CORS_ORIGIN, then redeploy.
+services:
+  - type: web
+    name: carparty-api
+    runtime: node
+    plan: free
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm db:generate && pnpm build:packages && pnpm --filter @carparty/api build
+    # Schema sync + seed on an empty DB; rebuilds the demo weekly so analytics stay current.
+    startCommand: pnpm --filter @carparty/database ensure-demo && node apps/api/dist/main.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: carparty-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: COLLECTOR_API_KEY
+        generateValue: true
+      - key: CORS_ORIGIN
+        value: https://carparty-crm.onrender.com,https://carparty-landing.onrender.com
+      - key: DEMO_REFRESH_DAYS
+        value: "7"
+
+  - type: web
+    name: carparty-crm
+    runtime: node
+    plan: free
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm db:generate && pnpm build:packages && pnpm --filter @carparty/web build
+    startCommand: pnpm --filter @carparty/web start
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NEXT_PUBLIC_API_URL
+        value: https://carparty-api.onrender.com/api
+
+  - type: web
+    name: carparty-landing
+    runtime: node
+    plan: free
+    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm build:packages && pnpm --filter @carparty/landing build
+    startCommand: pnpm --filter @carparty/landing start
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NEXT_PUBLIC_API_URL
+        value: https://carparty-api.onrender.com/api
+      - key: NEXT_PUBLIC_PRODUCT_URL
+        value: https://carparty-crm.onrender.com
+
+databases:
+  - name: carparty-db
+    plan: free
+    databaseName: carparty
+    user: carparty
