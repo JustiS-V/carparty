@@ -2,7 +2,7 @@
   "name": "carparty",
   "private": true,
   "scripts": {
-    "dev": "pnpm --filter @carparty/database build && turbo dev",
+    "dev": "pnpm -r --filter \"./packages/*\" run build && turbo dev",
     "build": "turbo build",
     "lint": "turbo lint",
     "db:generate": "pnpm --filter @carparty/database generate",
@@ -12,7 +12,11 @@
     "bot:dev": "pnpm --filter @carparty/bot dev",
     "landing:dev": "pnpm --filter @carparty/landing dev",
     "smoke": "tsx scripts/smoke-ingest.ts",
-    "deploy:prod": "docker compose -f docker-compose.prod.yml up -d --build"
+    "deploy:prod": "docker compose -f docker-compose.prod.yml up -d --build",
+    "build:packages": "pnpm -r --filter \"./packages/*\" run build",
+    "db:seed": "pnpm --filter @carparty/database seed",
+    "db:seed:demo": "pnpm --filter @carparty/database seed:demo",
+    "demo": "docker compose up -d && pnpm db:generate && pnpm build:packages && pnpm db:push && pnpm db:seed && pnpm db:seed:demo && turbo dev"
   },
   "devDependencies": {
     "dotenv": "^16.4.7",

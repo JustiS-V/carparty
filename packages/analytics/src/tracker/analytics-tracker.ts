@@ -72,9 +72,18 @@ export class AnalyticsTracker {
 
 let globalTracker: AnalyticsTracker | null = null;
 
+// Events tracked before initTracker() runs. React fires child effects before
+// parent effects, so a <TrackableView> can call track() before the provider
+// has initialised the tracker; those events are kept and replayed on init.
+const MAX_PENDING_EVENTS = 100;
+const pendingEvents: TrackEventPayload[] = [];
+
 export function initTracker(options: AnalyticsTrackerOptions): AnalyticsTracker {
   globalTracker?.destroy();
   globalTracker = new AnalyticsTracker(options);
+  for (const payload of pendingEvents.splice(0)) {
+    globalTracker.track(payload);
+  }
   return globalTracker;
 }
 
@@ -86,5 +95,11 @@ export function getTracker(): AnalyticsTracker {
 }
 
 export function track(payload: TrackEventPayload): void {
-  getTracker().track(payload);
+  if (!globalTracker) {
+    if (pendingEvents.length < MAX_PENDING_EVENTS) {
+      pendingEvents.push({ ...payload, timestamp: payload.timestamp ?? new Date().toISOString() });
+    }
+    return;
+  }
+  globalTracker.track(payload);
 }
